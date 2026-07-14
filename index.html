@@ -10,7 +10,6 @@
 
     <div class="toast" id="toast">✅ Готово!</div>
 
-    <!-- ===== АВТОРИЗАЦИЯ ===== -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-box">
             <h2>🍎 ТРИ В РЯД</h2>
@@ -22,7 +21,6 @@
         </div>
     </div>
 
-    <!-- ===== ИГРА ===== -->
     <div class="game">
         <button class="back-btn" id="backBtn">🏠 На главную</button>
         <div class="header">
@@ -47,12 +45,9 @@
 
     <script src="data.js"></script>
     <script src="auth.js"></script>
+    <script src="animations.js"></script>
     <script src="game.js"></script>
     <script>
-        // ================================================================
-        //  ЗАПУСК
-        // ================================================================
-
         const user = getCurrentUser();
         if (user) {
             document.getElementById('authOverlay').classList.add('hidden');
@@ -73,7 +68,7 @@
             showToast('🔄 Прогресс сброшен!', true);
         });
 
-        console.log('🍎 Три в ряд загружена!');
+        console.log('🍎 Три в ряд с анимациями загружена!');
     </script>
 </body>
 </html>
