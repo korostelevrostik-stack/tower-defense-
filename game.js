@@ -1,544 +1,417 @@
 // ================================================================
-//  game.js — ОСНОВНАЯ ЛОГИКА ИГРЫ
+//  game.js — ЛОГИКА ТРИ В РЯД
 // ================================================================
 
-let state = {
-    money: 50,
-    wave: 0,
-    lives: 5,
-    kills: 0,
-    towers: [],
-    enemies: [],
-    bullets: [],
-    particles: [],
-    waveActive: false,
-    enemySpawnTimer: 0,
-    enemiesPerWave: 5,
-    enemiesSpawned: 0,
-    waveCooldown: 0,
-    towerType: 0,
-    upgradeMode: false,
-    sellMode: false,
+let grid = [];
+const SIZE = 8;
+const EMOJIS = ['🍎', '🍐', '🍊', '🍋', '🍇', '🍉', '🍓', '🍑'];
+let selected = null;
+let score = 0;
+let moves = 0;
+let isProcessing = false;
+let currentUser = null;
+let highScore = 0;
+
+// Бонусы
+const BONUS_TYPES = {
+    ROCKET: 'rocket',  // 💥 — взрывает ряд
+    BOMB: 'bomb'       // 💣 — взрывает вокруг
 };
 
-const TOWER_TYPES = [
-    { name: 'Лучник', emoji: '🏹', cost: 20, damage: 1, range: 100, fireRate: 25, color: '#6fcf6f', upgradeCost: 15 },
-    { name: 'Маг', emoji: '🔮', cost: 35, damage: 2, range: 80, fireRate: 35, color: '#6f6fcf', upgradeCost: 25 },
-    { name: 'Пушка', emoji: '💥', cost: 50, damage: 4, range: 60, fireRate: 45, color: '#cf6f6f', upgradeCost: 35 },
-    { name: 'Ледяная', emoji: '❄️', cost: 70, damage: 1, range: 90, fireRate: 30, color: '#6fcfcf', upgradeCost: 40 },
-];
+function initGrid() {
+    grid = [];
+    for (let i = 0; i < SIZE; i++) {
+        grid[i] = [];
+        for (let j = 0; j < SIZE; j++) {
+            grid[i][j] = Math.floor(Math.random() * EMOJIS.length);
+        }
+    }
+    // Убираем начальные комбинации
+    while (hasMatches()) {
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (isPartOfMatch(i, j)) {
+                    grid[i][j] = Math.floor(Math.random() * EMOJIS.length);
+                }
+            }
+        }
+    }
+}
 
-let canvas, ctx, width, height;
-let gameRunning = false;
-let gameOver = false;
-let frameCount = 0;
-const CELL_SIZE = 40;
+function renderGrid() {
+    const container = document.getElementById('grid');
+    container.innerHTML = '';
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+            const value = grid[i][j];
+            if (typeof value === 'number') {
+                cell.textContent = EMOJIS[value];
+            } else if (value === BONUS_TYPES.ROCKET) {
+                cell.textContent = '💥';
+                cell.classList.add('bonus-rocket');
+            } else if (value === BONUS_TYPES.BOMB) {
+                cell.textContent = '💣';
+                cell.classList.add('bonus-bomb');
+            }
+            if (selected && selected[0] === i && selected[1] === j) {
+                cell.classList.add('selected');
+            }
+            cell.addEventListener('click', () => onCellClick(i, j));
+            cell.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                onCellClick(i, j);
+            });
+            container.appendChild(cell);
+        }
+    }
+    updateUI();
+}
 
-function initCanvas() {
-    canvas = document.getElementById('gameCanvas');
-    const rect = canvas.parentElement.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    ctx = canvas.getContext('2d');
-    width = canvas.width;
-    height = canvas.height;
+function onCellClick(row, col) {
+    if (isProcessing) return;
+    const val = grid[row][col];
+    if (typeof val !== 'number') {
+        // Бонус активируется при клике
+        activateBonus(row, col);
+        return;
+    }
+
+    if (!selected) {
+        selected = [row, col];
+        renderGrid();
+        return;
+    }
+
+    const [sRow, sCol] = selected;
+    if (sRow === row && sCol === col) {
+        selected = null;
+        renderGrid();
+        return;
+    }
+
+    // Проверяем соседство
+    const dr = Math.abs(sRow - row);
+    const dc = Math.abs(sCol - col);
+    if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+        swapAndCheck(sRow, sCol, row, col);
+    } else {
+        selected = [row, col];
+        renderGrid();
+    }
+}
+
+function swapAndCheck(r1, c1, r2, c2) {
+    isProcessing = true;
+    // Меняем местами
+    const temp = grid[r1][c1];
+    grid[r1][c1] = grid[r2][c2];
+    grid[r2][c2] = temp;
+    renderGrid();
+
+    if (hasMatches()) {
+        moves++;
+        document.getElementById('moves').textContent = moves;
+        processMatches();
+    } else {
+        // Отмена обмена
+        const tempBack = grid[r1][c1];
+        grid[r1][c1] = grid[r2][c2];
+        grid[r2][c2] = tempBack;
+        selected = null;
+        renderGrid();
+        isProcessing = false;
+    }
+}
+
+function hasMatches() {
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            if (isPartOfMatch(i, j)) return true;
+        }
+    }
+    return false;
+}
+
+function isPartOfMatch(row, col) {
+    const val = grid[row][col];
+    if (typeof val !== 'number') return false;
+    let count = 1;
+    for (let j = col - 1; j >= 0 && grid[row][j] === val; j--) count++;
+    for (let j = col + 1; j < SIZE && grid[row][j] === val; j++) count++;
+    if (count >= 3) return true;
+    count = 1;
+    for (let i = row - 1; i >= 0 && grid[i][col] === val; i--) count++;
+    for (let i = row + 1; i < SIZE && grid[i][col] === val; i++) count++;
+    return count >= 3;
+}
+
+function getMatches() {
+    const matches = [];
+    const checked = new Set();
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            if (checked.has(`${i},${j}`)) continue;
+            const val = grid[i][j];
+            if (typeof val !== 'number') continue;
+            const group = [];
+            let left = j, right = j;
+            while (left - 1 >= 0 && grid[i][left - 1] === val) left--;
+            while (right + 1 < SIZE && grid[i][right + 1] === val) right++;
+            if (right - left + 1 >= 3) {
+                for (let c = left; c <= right; c++) { group.push([i, c]); checked.add(`${i},${c}`); }
+            }
+            let top = i, bottom = i;
+            while (top - 1 >= 0 && grid[top - 1][j] === val) top--;
+            while (bottom + 1 < SIZE && grid[bottom + 1][j] === val) bottom++;
+            if (bottom - top + 1 >= 3) {
+                for (let r = top; r <= bottom; r++) {
+                    if (!checked.has(`${r},${j}`)) { group.push([r, j]); checked.add(`${r},${j}`); }
+                }
+            }
+            if (group.length > 0) matches.push(group);
+        }
+    }
+    return matches;
+}
+
+function processMatches() {
+    const matches = getMatches();
+    if (matches.length === 0) {
+        isProcessing = false;
+        selected = null;
+        return;
+    }
+
+    let points = 0;
+    let bonusMap = new Map(); // строка "row,col" -> тип бонуса
+    const cellsToRemove = new Set();
+
+    matches.forEach(group => {
+        const size = group.length;
+        if (size >= 4) {
+            // Бонусы!
+            const bonusType = size >= 5 ? BONUS_TYPES.BOMB : BONUS_TYPES.ROCKET;
+            // Бонус ставится на среднюю позицию группы
+            const mid = Math.floor(group.length / 2);
+            const [r, c] = group[mid];
+            bonusMap.set(`${r},${c}`, bonusType);
+            // Остальные удаляем
+            group.forEach(([r, c]) => {
+                if (!bonusMap.has(`${r},${c}`)) cellsToRemove.add(`${r},${c}`);
+            });
+        } else {
+            group.forEach(([r, c]) => cellsToRemove.add(`${r},${c}`));
+        }
+        points += size;
+    });
+
+    score += points;
+    document.getElementById('score').textContent = score;
+
+    // Обновляем рекорд
+    if (score > highScore) {
+        highScore = score;
+        document.getElementById('highScore').textContent = highScore;
+        if (currentUser) {
+            const gs = getGameState(currentUser);
+            gs.highScore = highScore;
+            saveGameState(currentUser, gs);
+        }
+    }
+
+    // Удаляем ячейки
+    cellsToRemove.forEach(key => {
+        const [r, c] = key.split(',').map(Number);
+        grid[r][c] = -1;
+    });
+
+    // Ставим бонусы
+    bonusMap.forEach((type, key) => {
+        const [r, c] = key.split(',').map(Number);
+        grid[r][c] = type;
+    });
+
+    renderGrid();
+
+    // Падение
+    setTimeout(() => {
+        dropDown();
+        renderGrid();
+        setTimeout(() => {
+            if (hasMatches()) {
+                processMatches();
+            } else {
+                isProcessing = false;
+                selected = null;
+                checkGameOver();
+            }
+        }, 300);
+    }, 300);
+}
+
+function dropDown() {
+    for (let c = 0; c < SIZE; c++) {
+        let writeRow = SIZE - 1;
+        for (let r = SIZE - 1; r >= 0; r--) {
+            if (grid[r][c] !== -1) {
+                grid[writeRow][c] = grid[r][c];
+                if (writeRow !== r) grid[r][c] = -1;
+                writeRow--;
+            }
+        }
+        for (let r = writeRow; r >= 0; r--) {
+            grid[r][c] = Math.floor(Math.random() * EMOJIS.length);
+        }
+    }
+}
+
+function activateBonus(row, col) {
+    const bonus = grid[row][col];
+    if (bonus === BONUS_TYPES.ROCKET) {
+        // Взрываем ряд
+        for (let i = 0; i < SIZE; i++) {
+            if (typeof grid[row][i] === 'number') {
+                grid[row][i] = -1;
+                score += 1;
+            }
+        }
+        grid[row][col] = -1;
+        showToast('💥 Ракета!', false);
+    } else if (bonus === BONUS_TYPES.BOMB) {
+        // Взрываем вокруг
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                const nr = row + i, nc = col + j;
+                if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) {
+                    if (typeof grid[nr][nc] === 'number') {
+                        grid[nr][nc] = -1;
+                        score += 1;
+                    }
+                }
+            }
+        }
+        grid[row][col] = -1;
+        showToast('💣 Бомба!', false);
+    }
+    document.getElementById('score').textContent = score;
+    dropDown();
+    renderGrid();
+    setTimeout(() => {
+        if (hasMatches()) {
+            processMatches();
+        } else {
+            isProcessing = false;
+            selected = null;
+            checkGameOver();
+        }
+    }, 300);
+}
+
+function checkGameOver() {
+    // Проверяем, есть ли возможные ходы
+    for (let i = 0; i < SIZE; i++) {
+        for (let j = 0; j < SIZE; j++) {
+            if (typeof grid[i][j] !== 'number') continue;
+            // Проверяем соседей
+            const neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
+            for (let [di, dj] of neighbors) {
+                const ni = i + di, nj = j + dj;
+                if (ni >= 0 && ni < SIZE && nj >= 0 && nj < SIZE) {
+                    if (typeof grid[ni][nj] !== 'number') continue;
+                    // Пробуем поменять
+                    const temp = grid[i][j];
+                    grid[i][j] = grid[ni][nj];
+                    grid[ni][nj] = temp;
+                    if (hasMatches()) {
+                        grid[ni][nj] = grid[i][j];
+                        grid[i][j] = temp;
+                        return;
+                    }
+                    grid[ni][nj] = grid[i][j];
+                    grid[i][j] = temp;
+                }
+            }
+        }
+    }
+    // Нет ходов — перемешиваем
+    showToast('🔄 Перемешивание...', false);
+    setTimeout(() => {
+        const flat = [];
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (typeof grid[i][j] === 'number') flat.push(grid[i][j]);
+            }
+        }
+        // Перемешиваем
+        for (let i = flat.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [flat[i], flat[j]] = [flat[j], flat[i]];
+        }
+        let idx = 0;
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (typeof grid[i][j] === 'number') {
+                    grid[i][j] = flat[idx++];
+                }
+            }
+        }
+        // Убираем бонусы
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (typeof grid[i][j] !== 'number') grid[i][j] = Math.floor(Math.random() * EMOJIS.length);
+            }
+        }
+        renderGrid();
+    }, 500);
+}
+
+function updateUI() {
+    document.getElementById('score').textContent = score;
+    document.getElementById('moves').textContent = moves;
+    document.getElementById('highScore').textContent = highScore;
+    const user = getCurrentUser();
+    if (user) document.getElementById('userName').textContent = user;
 }
 
 function startGame() {
     const user = getCurrentUser();
     if (!user) { showAuthScreen('login'); return; }
-
-    const userState = getGameState(user);
-    state.money = userState?.money || 50;
-    state.wave = 0;
-    state.lives = 5;
-    state.kills = 0;
-    state.towers = [];
-    state.enemies = [];
-    state.bullets = [];
-    state.particles = [];
-    state.waveActive = false;
-    state.enemySpawnTimer = 0;
-    state.enemiesPerWave = 5;
-    state.enemiesSpawned = 0;
-    state.waveCooldown = 0;
-    state.upgradeMode = false;
-    state.sellMode = false;
-    gameRunning = true;
-    gameOver = false;
-    frameCount = 0;
-
-    document.getElementById('gameOver').classList.remove('active');
-    document.getElementById('upgradeBtn').style.borderColor = '#2a4a5a';
-    document.getElementById('sellBtn').style.borderColor = '#2a4a5a';
-    document.getElementById('statusMsg').textContent = '🏰 Нажми на поле, чтобы поставить башню!';
-    updateUI();
-    requestAnimationFrame(gameLoop);
+    currentUser = user;
+    const gs = getGameState(user);
+    highScore = gs?.highScore || 0;
+    score = 0;
+    moves = 0;
+    selected = null;
+    isProcessing = false;
+    document.getElementById('score').textContent = '0';
+    document.getElementById('moves').textContent = '0';
+    document.getElementById('highScore').textContent = highScore;
+    document.getElementById('userName').textContent = user;
+    initGrid();
+    renderGrid();
+    document.getElementById('statusMsg').textContent = '🍎 Собирай комбинации!';
 }
 
-function gameLoop() {
-    if (!gameRunning) return;
-    frameCount++;
-    updateGame();
-    drawGame();
-    if (!gameOver) {
-        requestAnimationFrame(gameLoop);
-    }
-}
+// Глобальная функция для тоста
+window.showToast = function(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast' + (isError ? ' error' : '');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+};
 
-function updateGame() {
-    // Башни
-    for (let t of state.towers) {
-        if (t.cooldown > 0) t.cooldown--;
-
-        let closest = null;
-        let closestDist = Infinity;
-        for (let e of state.enemies) {
-            const dx = e.x - t.x;
-            const dy = e.y - t.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < t.range && dist < closestDist) {
-                closest = e;
-                closestDist = dist;
-            }
-        }
-        t.target = closest;
-
-        if (t.target && t.cooldown === 0) {
-            t.cooldown = t.fireRate;
-            const type = TOWER_TYPES[t.type];
-            let isIce = type.name === 'Ледяная';
-            state.bullets.push({
-                x: t.x,
-                y: t.y,
-                target: t.target,
-                speed: 5,
-                damage: t.damage,
-                size: 4,
-                color: isIce ? '#6fcfcf' : '#ffd700',
-                isIce: isIce,
-            });
-        }
-    }
-
-    // Пули
-    for (let i = state.bullets.length - 1; i >= 0; i--) {
-        const b = state.bullets[i];
-        if (!b.target || b.target.hp <= 0) {
-            state.bullets.splice(i, 1);
-            continue;
-        }
-        const dx = b.target.x - b.x;
-        const dy = b.target.y - b.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < b.speed + b.target.size) {
-            b.target.hp -= b.damage;
-            if (b.isIce) {
-                b.target.speed = Math.max(0.3, b.target.speed * 0.5);
-                b.target.slowTimer = 30;
-            }
-            for (let p = 0; p < 5; p++) {
-                state.particles.push({
-                    x: b.target.x,
-                    y: b.target.y,
-                    vx: (Math.random() - 0.5) * 4,
-                    vy: (Math.random() - 0.5) * 4,
-                    life: 20 + Math.random() * 20,
-                    size: 2 + Math.random() * 3,
-                    color: b.color,
-                });
-            }
-            if (b.target.hp <= 0) {
-                state.kills++;
-                state.money += b.target.value;
-                const user = getCurrentUser();
-                if (user) {
-                    const gs = getGameState(user);
-                    gs.totalKills = (gs.totalKills || 0) + 1;
-                    gs.money = state.money;
-                    saveGameState(user, gs);
-                }
-                const idx = state.enemies.indexOf(b.target);
-                if (idx > -1) state.enemies.splice(idx, 1);
-                for (let p = 0; p < 10; p++) {
-                    state.particles.push({
-                        x: b.target.x,
-                        y: b.target.y,
-                        vx: (Math.random() - 0.5) * 6,
-                        vy: (Math.random() - 0.5) * 6,
-                        life: 15 + Math.random() * 20,
-                        size: 2 + Math.random() * 4,
-                        color: '#ffd700',
-                    });
-                }
-            }
-            state.bullets.splice(i, 1);
-        } else {
-            b.x += (dx / dist) * b.speed;
-            b.y += (dy / dist) * b.speed;
-        }
-    }
-
-    // Враги
-    for (let i = state.enemies.length - 1; i >= 0; i--) {
-        const e = state.enemies[i];
-        if (e.slowTimer > 0) e.slowTimer--;
-        let speed = e.speed;
-        if (e.slowTimer > 0) speed *= 0.6;
-        e.x += speed;
-
-        if (e.type === 'healer') {
-            e.healTimer--;
-            if (e.healTimer <= 0) {
-                e.healTimer = 30;
-                for (let other of state.enemies) {
-                    if (other !== e && other.hp < other.maxHp) {
-                        other.hp = Math.min(other.maxHp, other.hp + 1);
-                    }
-                }
-            }
-        }
-
-        if (e.x > width + 20) {
-            state.lives--;
-            state.enemies.splice(i, 1);
-            if (state.lives <= 0) {
-                endGame(false);
-                return;
-            }
-            updateUI();
-        }
-    }
-
-    // Спавн врагов
-    if (state.waveActive) {
-        state.enemySpawnTimer--;
-        if (state.enemySpawnTimer <= 0) {
-            spawnEnemy();
-            state.enemySpawnTimer = Math.max(10, 35 - state.wave * 1.5);
-        }
-    }
-
-    if (!state.waveActive && state.waveCooldown > 0) {
-        state.waveCooldown--;
-        if (state.waveCooldown === 0) {
-            startWave();
-        }
-    }
-
-    // Частицы
-    for (let i = state.particles.length - 1; i >= 0; i--) {
-        const p = state.particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-        if (p.life <= 0) state.particles.splice(i, 1);
-    }
-
-    updateUI();
-}
-
-function spawnEnemy() {
-    if (!state.waveActive) return;
-    if (state.enemiesSpawned >= state.enemiesPerWave) {
-        if (state.enemies.length === 0) {
-            state.waveActive = false;
-            state.waveCooldown = 50;
-            const user = getCurrentUser();
-            if (user) {
-                const gs = getGameState(user);
-                if (state.wave > gs.maxWaves) {
-                    gs.maxWaves = state.wave;
-                }
-                gs.money = state.money;
-                saveGameState(user, gs);
-            }
-            const bonus = 10 + state.wave * 2;
-            state.money += bonus;
-            document.getElementById('statusMsg').textContent = `🌊 Волна ${state.wave} пройдена! +${bonus}💰`;
-            showToast(`💰 +${bonus} за волну!`, false);
-            updateUI();
-        }
-        return;
-    }
-
-    let type = 'normal';
-    let size = 12 + Math.random() * 6;
-    let hp = 2 + state.wave;
-    let speed = 0.5 + state.wave * 0.06;
-    let value = 2 + Math.floor(state.wave / 2);
-    let color = '#6fcf6f';
-
-    const r = Math.random();
-    if (state.wave > 3 && r < 0.2) {
-        type = 'fast';
-        size = 10;
-        hp = 1 + Math.floor(state.wave / 2);
-        speed = 1.5 + state.wave * 0.1;
-        value = 3 + Math.floor(state.wave / 2);
-        color = '#ff6b6b';
-    } else if (state.wave > 5 && r < 0.15) {
-        type = 'tank';
-        size = 22;
-        hp = 5 + state.wave * 2;
-        speed = 0.3 + state.wave * 0.03;
-        value = 5 + state.wave;
-        color = '#6b6bcf';
-    } else if (state.wave > 8 && r < 0.1) {
-        type = 'healer';
-        size = 14;
-        hp = 3 + state.wave;
-        speed = 0.4 + state.wave * 0.04;
-        value = 4 + state.wave;
-        color = '#6fcfcf';
-    }
-
-    state.enemies.push({
-        x: -size,
-        y: Math.random() * (height - 40) + 20,
-        size: size,
-        hp: hp,
-        maxHp: hp,
-        speed: Math.min(speed, 3.5),
-        value: value,
-        type: type,
-        color: color,
-        healTimer: 0,
-        slowTimer: 0,
-    });
-    state.enemiesSpawned++;
-}
-
-function buildTower(x, y) {
-    const type = TOWER_TYPES[state.towerType];
-    if (state.money < type.cost) {
-        showToast('⚠️ Не хватает денег!', true);
-        return false;
-    }
-    const cx = Math.floor(x / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
-    const cy = Math.floor(y / CELL_SIZE) * CELL_SIZE + CELL_SIZE / 2;
-    for (let t of state.towers) {
-        if (Math.abs(t.x - cx) < CELL_SIZE && Math.abs(t.y - cy) < CELL_SIZE) {
-            showToast('⚠️ Здесь уже есть башня!', true);
-            return false;
-        }
-    }
-    state.money -= type.cost;
-    state.towers.push({
-        x: cx,
-        y: cy,
-        type: state.towerType,
-        level: 1,
-        damage: type.damage,
-        range: type.range,
-        fireRate: type.fireRate,
-        cooldown: 0,
-        target: null,
-        emoji: type.emoji,
-        color: type.color,
-        name: type.name,
-    });
-    const user = getCurrentUser();
-    if (user) {
-        const gs = getGameState(user);
-        gs.money = state.money;
-        saveGameState(user, gs);
-    }
-    updateUI();
-    showToast(`✅ ${type.name} построена!`, false);
-    return true;
-}
-
-function upgradeTower(x, y) {
-    let found = false;
-    for (let t of state.towers) {
-        if (Math.abs(t.x - x) < CELL_SIZE && Math.abs(t.y - y) < CELL_SIZE) {
-            const type = TOWER_TYPES[t.type];
-            const cost = type.upgradeCost + t.level * 5;
-            if (state.money < cost) {
-                showToast(`⚠️ Нужно ${cost}💰!`, true);
-                return false;
-            }
-            if (t.level >= 5) {
-                showToast('⚠️ Максимальный уровень!', true);
-                return false;
-            }
-            state.money -= cost;
-            t.level++;
-            t.damage = type.damage + t.level * 0.5;
-            t.range = type.range + t.level * 8;
-            t.fireRate = Math.max(12, type.fireRate - t.level * 2);
-            found = true;
-            const user = getCurrentUser();
-            if (user) {
-                const gs = getGameState(user);
-                gs.money = state.money;
-                saveGameState(user, gs);
-            }
-            updateUI();
-            showToast(`⬆️ ${type.name} улучшена до ${t.level} уровня!`, false);
-            break;
-        }
-    }
-    if (!found) showToast('⚠️ Нажми на башню!', true);
-    return found;
-}
-
-function sellTower(x, y) {
-    let found = false;
-    for (let i = state.towers.length - 1; i >= 0; i--) {
-        const t = state.towers[i];
-        if (Math.abs(t.x - x) < CELL_SIZE && Math.abs(t.y - y) < CELL_SIZE) {
-            const type = TOWER_TYPES[t.type];
-            const sellValue = Math.floor(type.cost / 2) + t.level * 3;
-            state.money += sellValue;
-            state.towers.splice(i, 1);
-            found = true;
-            const user = getCurrentUser();
-            if (user) {
-                const gs = getGameState(user);
-                gs.money = state.money;
-                saveGameState(user, gs);
-            }
-            updateUI();
-            showToast(`💰 Башня продана за ${sellValue}💰!`, false);
-            break;
-        }
-    }
-    if (!found) showToast('⚠️ Нажми на башню!', true);
-    return found;
-}
-
-function updateUI() {
-    document.getElementById('money').textContent = Math.floor(state.money);
-    document.getElementById('wave').textContent = state.wave;
-    document.getElementById('lives').textContent = state.lives;
-    document.getElementById('kills').textContent = state.kills;
-
-    document.querySelectorAll('.tower-btn').forEach((btn, i) => {
-        const type = TOWER_TYPES[i];
-        btn.classList.toggle('active', state.towerType === i);
-        btn.querySelector('.tprice').textContent = `${type.cost}💰`;
-    });
-}
-
-function endGame(win) {
-    if (gameOver) return;
-    gameOver = true;
-    gameRunning = false;
-    const overlay = document.getElementById('gameOver');
-    overlay.classList.add('active');
-
-    const goText = document.getElementById('goText');
-    if (win) {
-        goText.textContent = '🏆 ПОБЕДА!';
-        goText.className = 'go-text win';
-        const bonus = 50 + state.wave * 5;
-        state.money += bonus;
-        showToast(`🏆 Победа! +${bonus}💰!`, false);
-    } else {
-        goText.textContent = '💀 ПОРАЖЕНИЕ';
-        goText.className = 'go-text';
-        const bonus = Math.floor(state.money / 3);
-        state.money += bonus;
-        showToast(`💀 +${bonus}💰 утешительный приз`, false);
-    }
-
-    document.getElementById('goMoney').textContent = Math.floor(state.money);
-    document.getElementById('goWaves').textContent = state.wave;
-    document.getElementById('goKills').textContent = state.kills;
-
-    const user = getCurrentUser();
-    if (user) {
-        const gs = getGameState(user);
-        gs.money = state.money;
-        if (state.wave > gs.maxWaves) gs.maxWaves = state.wave;
-        saveGameState(user, gs);
-    }
-    updateUI();
-}
-
-// ---- ОБРАБОТЧИКИ ----
-document.getElementById('restartBtn').addEventListener('click', startGame);
-
-document.querySelectorAll('.tower-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        state.towerType = parseInt(this.dataset.tower);
-        document.querySelectorAll('.tower-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-    });
-});
-
-document.getElementById('upgradeBtn').addEventListener('click', () => {
-    state.upgradeMode = !state.upgradeMode;
-    state.sellMode = false;
-    document.getElementById('statusMsg').textContent = state.upgradeMode ?
-        '⬆️ Нажми на башню, чтобы улучшить' :
-        '🏰 Режим улучшения отключён';
-    document.getElementById('upgradeBtn').style.borderColor = state.upgradeMode ? '#ffd700' : '#2a4a5a';
-    document.getElementById('sellBtn').style.borderColor = '#2a4a5a';
-});
-
-document.getElementById('sellBtn').addEventListener('click', () => {
-    state.sellMode = !state.sellMode;
-    state.upgradeMode = false;
-    document.getElementById('statusMsg').textContent = state.sellMode ?
-        '💰 Нажми на башню, чтобы продать' :
-        '🏰 Режим продажи отключён';
-    document.getElementById('sellBtn').style.borderColor = state.sellMode ? '#ff6b6b' : '#2a4a5a';
-    document.getElementById('upgradeBtn').style.borderColor = '#2a4a5a';
-});
-
-document.getElementById('resetBtn').addEventListener('click', () => {
-    if (!confirm('Сбросить прогресс?')) return;
-    const user = getCurrentUser();
-    if (user) {
-        const gs = getGameState(user);
-        gs.money = 50;
-        gs.maxWaves = 0;
-        gs.totalKills = 0;
-        saveGameState(user, gs);
-    }
-    startGame();
-    showToast('🔄 Прогресс сброшен!', true);
-});
-
-// Клик по полю
-canvas = document.getElementById('gameCanvas');
-canvas.addEventListener('click', (e) => {
-    if (!gameRunning || gameOver) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
-    if (state.upgradeMode) {
-        upgradeTower(x, y);
-    } else if (state.sellMode) {
-        sellTower(x, y);
-    } else {
-        buildTower(x, y);
-    }
-});
-
-canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    if (!gameRunning || gameOver) return;
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (touch.clientX - rect.left) * scaleX;
-    const y = (touch.clientY - rect.top) * scaleY;
-
-    if (state.upgradeMode) {
-        upgradeTower(x, y);
-    } else if (state.sellMode) {
-        sellTower(x, y);
-    } else {
-        buildTower(x, y);
-    }
+// Кнопки
+document.getElementById('newGameBtn').addEventListener('click', startGame);
+document.getElementById('shuffleBtn').addEventListener('click', () => {
+    if (isProcessing) return;
+    initGrid();
+    renderGrid();
+    showToast('🔄 Перемешано!', false);
 });
 
 console.log('🎮 game.js загружен!');
