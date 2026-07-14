@@ -1,5 +1,5 @@
 // ================================================================
-//  auth.js — СИСТЕМА РЕГИСТРАЦИИ И ВХОДА
+//  auth.js — РЕГИСТРАЦИЯ И ВХОД
 // ================================================================
 
 function showAuthScreen(mode) {
@@ -9,6 +9,7 @@ function showAuthScreen(mode) {
     document.getElementById('authSuccess').textContent = '';
 
     if (mode === 'login') {
+        document.getElementById('authTitle').textContent = '🍎 Вход';
         document.getElementById('authSubmitBtn').textContent = 'Войти';
         document.getElementById('authSubmitBtn').className = 'auth-btn-login';
         document.getElementById('authToggle').textContent = 'Нет аккаунта? Регистрация';
@@ -17,6 +18,7 @@ function showAuthScreen(mode) {
             <input type="text" id="authLogin" placeholder="👤 Твоё имя">
         `;
     } else {
+        document.getElementById('authTitle').textContent = '🍎 Регистрация';
         document.getElementById('authSubmitBtn').textContent = 'Создать аккаунт';
         document.getElementById('authSubmitBtn').className = 'auth-btn-register';
         document.getElementById('authToggle').textContent = 'Уже есть аккаунт? Войти';
@@ -62,7 +64,8 @@ function handleAuth() {
             setTimeout(() => {
                 loginUser(name);
                 document.getElementById('authOverlay').classList.add('hidden');
-                if (typeof startGame === 'function') startGame();
+                document.getElementById('userName').textContent = name;
+                startGame();
             }, 500);
         } else {
             err.textContent = result.error;
@@ -76,7 +79,8 @@ function handleAuth() {
         setTimeout(() => {
             loginUser(name);
             document.getElementById('authOverlay').classList.add('hidden');
-            if (typeof startGame === 'function') startGame();
+            document.getElementById('userName').textContent = name;
+            startGame();
         }, 500);
     }
 }
@@ -91,8 +95,8 @@ document.getElementById('backBtn').addEventListener('click', () => {
     if (confirm('Выйти из аккаунта?')) {
         logoutUser();
         document.getElementById('authOverlay').classList.remove('hidden');
+        document.getElementById('userName').textContent = 'Гость';
         showAuthScreen('login');
-        if (typeof stopGame === 'function') stopGame();
     }
 });
 
