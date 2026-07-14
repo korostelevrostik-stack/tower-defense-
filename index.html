@@ -10,9 +10,10 @@
 
     <div class="toast" id="toast">✅ Готово!</div>
 
+    <!-- ===== АВТОРИЗАЦИЯ ===== -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-box">
-            <h2>🍎 ТРИ В РЯД</h2>
+            <h2 id="authTitle">🍎 Три в ряд</h2>
             <div class="auth-error" id="authError"></div>
             <div class="auth-success" id="authSuccess"></div>
             <div id="authExtraFields"></div>
@@ -21,6 +22,7 @@
         </div>
     </div>
 
+    <!-- ===== ИГРА ===== -->
     <div class="game">
         <button class="back-btn" id="backBtn">🏠 На главную</button>
         <div class="header">
@@ -48,27 +50,32 @@
     <script src="animations.js"></script>
     <script src="game.js"></script>
     <script>
+        // ================================================================
+        //  ЗАПУСК
+        // ================================================================
+
         const user = getCurrentUser();
         if (user) {
             document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('userName').textContent = user;
             startGame();
         } else {
+            document.getElementById('userName').textContent = 'Гость';
             showAuthScreen('register');
         }
 
         document.getElementById('resetBtn').addEventListener('click', () => {
-            if (!confirm('Сбросить прогресс?')) return;
+            if (!confirm('Сбросить рекорд?')) return;
             const user = getCurrentUser();
             if (user) {
-                const gs = getGameState(user);
-                gs.highScore = 0;
-                saveGameState(user, gs);
+                saveHighScore(user, 0);
+                highScore = 0;
+                document.getElementById('highScore').textContent = '0';
+                showToast('🔄 Рекорд сброшен!', true);
             }
-            startGame();
-            showToast('🔄 Прогресс сброшен!', true);
         });
 
-        console.log('🍎 Три в ряд с анимациями загружена!');
+        console.log('🍎 Три в ряд загружена!');
     </script>
 </body>
 </html>
