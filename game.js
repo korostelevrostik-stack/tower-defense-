@@ -1,5 +1,5 @@
 // ================================================================
-//  game.js — ЛОГИКА ТРИ В РЯД
+//  game.js — ЛОГИКА ТРИ В РЯД С АНИМАЦИЯМИ
 // ================================================================
 
 let grid = [];
@@ -12,10 +12,9 @@ let isProcessing = false;
 let currentUser = null;
 let highScore = 0;
 
-// Бонусы
 const BONUS_TYPES = {
-    ROCKET: 'rocket',  // 💥 — взрывает ряд
-    BOMB: 'bomb'       // 💣 — взрывает вокруг
+    ROCKET: 'rocket',
+    BOMB: 'bomb'
 };
 
 function initGrid() {
@@ -26,7 +25,6 @@ function initGrid() {
             grid[i][j] = Math.floor(Math.random() * EMOJIS.length);
         }
     }
-    // Убираем начальные комбинации
     while (hasMatches()) {
         for (let i = 0; i < SIZE; i++) {
             for (let j = 0; j < SIZE; j++) {
@@ -68,6 +66,7 @@ function renderGrid() {
             container.appendChild(cell);
         }
     }
+    Animations.updateGrid();
     updateUI();
 }
 
@@ -75,25 +74,20 @@ function onCellClick(row, col) {
     if (isProcessing) return;
     const val = grid[row][col];
     if (typeof val !== 'number') {
-        // Бонус активируется при клике
         activateBonus(row, col);
         return;
     }
-
     if (!selected) {
         selected = [row, col];
         renderGrid();
         return;
     }
-
     const [sRow, sCol] = selected;
     if (sRow === row && sCol === col) {
         selected = null;
         renderGrid();
         return;
     }
-
-    // Проверяем соседство
     const dr = Math.abs(sRow - row);
     const dc = Math.abs(sCol - col);
     if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
@@ -106,25 +100,27 @@ function onCellClick(row, col) {
 
 function swapAndCheck(r1, c1, r2, c2) {
     isProcessing = true;
-    // Меняем местами
+    // Меняем в данных
     const temp = grid[r1][c1];
     grid[r1][c1] = grid[r2][c2];
     grid[r2][c2] = temp;
-    renderGrid();
 
-    if (hasMatches()) {
-        moves++;
-        document.getElementById('moves').textContent = moves;
-        processMatches();
-    } else {
-        // Отмена обмена
-        const tempBack = grid[r1][c1];
-        grid[r1][c1] = grid[r2][c2];
-        grid[r2][c2] = tempBack;
-        selected = null;
-        renderGrid();
-        isProcessing = false;
-    }
+    // Плавная анимация обмена
+    Animations.swap(r1, c1, r2, c2, () => {
+        if (hasMatches()) {
+            moves++;
+            document.getElementById('moves').textContent = moves;
+            processMatches();
+        } else {
+            // Отмена обмена
+            const tempBack = grid[r1][c1];
+            grid[r1][c1] = grid[r2][c2];
+            grid[r2][c2] = tempBack;
+            selected = null;
+            renderGrid();
+            isProcessing = false;
+        }
+    });
 }
 
 function hasMatches() {
@@ -187,24 +183,21 @@ function processMatches() {
     }
 
     let points = 0;
-    let bonusMap = new Map(); // строка "row,col" -> тип бонуса
+    let bonusMap = new Map();
     const cellsToRemove = new Set();
 
     matches.forEach(group => {
         const size = group.length;
         if (size >= 4) {
-            // Бонусы!
             const bonusType = size >= 5 ? BONUS_TYPES.BOMB : BONUS_TYPES.ROCKET;
-            // Бонус ставится на среднюю позицию группы
             const mid = Math.floor(group.length / 2);
             const [r, c] = group[mid];
             bonusMap.set(`${r},${c}`, bonusType);
-            // Остальные удаляем
             group.forEach(([r, c]) => {
                 if (!bonusMap.has(`${r},${c}`)) cellsToRemove.add(`${r},${c}`);
             });
         } else {
-            group.forEach(([r, c]) => cellsToRemove.add(`${r},${c}`));
+            group.forEach(([r, c]) => cellsToRemove.add(`${r},${c}`);
         }
         points += size;
     });
@@ -212,7 +205,6 @@ function processMatches() {
     score += points;
     document.getElementById('score').textContent = score;
 
-    // Обновляем рекорд
     if (score > highScore) {
         highScore = score;
         document.getElementById('highScore').textContent = highScore;
@@ -223,24 +215,127 @@ function processMatches() {
         }
     }
 
-    // Удаляем ячейки
-    cellsToRemove.forEach(key => {
+    // Анимация удаления
+    const cellsToRemoveArray = Array.from(cellsToRemove).map(key => {
         const [r, c] = key.split(',').map(Number);
-        grid[r][c] = -1;
+        return [r, c];
     });
 
-    // Ставим бонусы
-    bonusMap.forEach((type, key) => {
-        const [r, c] = key.split(',').map(Number);
-        grid[r][c] = type;
-    });
+    Animations.remove(cellsToRemoveArray, () => {
+        // Удаляем из данных
+        cellsToRemove.forEach(key => {
+            const [r, c] = key.split(',').map(Number);
+            grid[r][c] = -1;
+        });
 
+        // Ставим бонусы
+        bonusMap.forEach((type, key) => {
+            const [r, c] = key.split(',').map(Number);
+            grid[r][c] = type;
+            Animations.bonus(r, c, type);
+        });
+
+        // Падение
+        setTimeout(() => {
+            const changed = dropDown();
+            renderGrid();
+            // Анимация падения
+            const rows = [];
+            const cols = [];
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (grid[r][c] !== -1) {
+                        rows.push(r);
+                        cols.push(c);
+                    }
+                }
+            }
+            Animations.drop(rows, cols, () => {
+                setTimeout(() => {
+                    if (hasMatches()) {
+                        processMatches();
+                    } else {
+                        isProcessing = false;
+                        selected = null;
+                        checkGameOver();
+                    }
+                }, 200);
+            });
+        }, 300);
+    });
+}
+
+function dropDown() {
+    let changed = false;
+    for (let c = 0; c < SIZE; c++) {
+        let writeRow = SIZE - 1;
+        for (let r = SIZE - 1; r >= 0; r--) {
+            if (grid[r][c] !== -1) {
+                grid[writeRow][c] = grid[r][c];
+                if (writeRow !== r) {
+                    grid[r][c] = -1;
+                    changed = true;
+                }
+                writeRow--;
+            }
+        }
+        for (let r = writeRow; r >= 0; r--) {
+            grid[r][c] = Math.floor(Math.random() * EMOJIS.length);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+function activateBonus(row, col) {
+    const bonus = grid[row][col];
+    if (bonus === BONUS_TYPES.ROCKET) {
+        showToast('💥 Ракета!', false);
+        Animations.bonusActivation(row, col, 'rocket', () => {
+            for (let i = 0; i < SIZE; i++) {
+                if (typeof grid[row][i] === 'number') {
+                    grid[row][i] = -1;
+                    score += 1;
+                }
+            }
+            grid[row][col] = -1;
+            document.getElementById('score').textContent = score;
+            afterBonus();
+        });
+    } else if (bonus === BONUS_TYPES.BOMB) {
+        showToast('💣 Бомба!', false);
+        Animations.bonusActivation(row, col, 'bomb', () => {
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const nr = row + i, nc = col + j;
+                    if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) {
+                        if (typeof grid[nr][nc] === 'number') {
+                            grid[nr][nc] = -1;
+                            score += 1;
+                        }
+                    }
+                }
+            }
+            grid[row][col] = -1;
+            document.getElementById('score').textContent = score;
+            afterBonus();
+        });
+    }
+}
+
+function afterBonus() {
+    const changed = dropDown();
     renderGrid();
-
-    // Падение
-    setTimeout(() => {
-        dropDown();
-        renderGrid();
+    const rows = [], cols = [];
+    for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+            if (grid[r][c] !== -1) {
+                rows.push(r);
+                cols.push(c);
+            }
+        }
+    }
+    Animations.drop(rows, cols, () => {
         setTimeout(() => {
             if (hasMatches()) {
                 processMatches();
@@ -249,80 +344,19 @@ function processMatches() {
                 selected = null;
                 checkGameOver();
             }
-        }, 300);
-    }, 300);
-}
-
-function dropDown() {
-    for (let c = 0; c < SIZE; c++) {
-        let writeRow = SIZE - 1;
-        for (let r = SIZE - 1; r >= 0; r--) {
-            if (grid[r][c] !== -1) {
-                grid[writeRow][c] = grid[r][c];
-                if (writeRow !== r) grid[r][c] = -1;
-                writeRow--;
-            }
-        }
-        for (let r = writeRow; r >= 0; r--) {
-            grid[r][c] = Math.floor(Math.random() * EMOJIS.length);
-        }
-    }
-}
-
-function activateBonus(row, col) {
-    const bonus = grid[row][col];
-    if (bonus === BONUS_TYPES.ROCKET) {
-        // Взрываем ряд
-        for (let i = 0; i < SIZE; i++) {
-            if (typeof grid[row][i] === 'number') {
-                grid[row][i] = -1;
-                score += 1;
-            }
-        }
-        grid[row][col] = -1;
-        showToast('💥 Ракета!', false);
-    } else if (bonus === BONUS_TYPES.BOMB) {
-        // Взрываем вокруг
-        for (let i = -1; i <= 1; i++) {
-            for (let j = -1; j <= 1; j++) {
-                const nr = row + i, nc = col + j;
-                if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) {
-                    if (typeof grid[nr][nc] === 'number') {
-                        grid[nr][nc] = -1;
-                        score += 1;
-                    }
-                }
-            }
-        }
-        grid[row][col] = -1;
-        showToast('💣 Бомба!', false);
-    }
-    document.getElementById('score').textContent = score;
-    dropDown();
-    renderGrid();
-    setTimeout(() => {
-        if (hasMatches()) {
-            processMatches();
-        } else {
-            isProcessing = false;
-            selected = null;
-            checkGameOver();
-        }
-    }, 300);
+        }, 200);
+    });
 }
 
 function checkGameOver() {
-    // Проверяем, есть ли возможные ходы
     for (let i = 0; i < SIZE; i++) {
         for (let j = 0; j < SIZE; j++) {
             if (typeof grid[i][j] !== 'number') continue;
-            // Проверяем соседей
             const neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
             for (let [di, dj] of neighbors) {
                 const ni = i + di, nj = j + dj;
                 if (ni >= 0 && ni < SIZE && nj >= 0 && nj < SIZE) {
                     if (typeof grid[ni][nj] !== 'number') continue;
-                    // Пробуем поменять
                     const temp = grid[i][j];
                     grid[i][j] = grid[ni][nj];
                     grid[ni][nj] = temp;
@@ -337,7 +371,6 @@ function checkGameOver() {
             }
         }
     }
-    // Нет ходов — перемешиваем
     showToast('🔄 Перемешивание...', false);
     setTimeout(() => {
         const flat = [];
@@ -346,7 +379,6 @@ function checkGameOver() {
                 if (typeof grid[i][j] === 'number') flat.push(grid[i][j]);
             }
         }
-        // Перемешиваем
         for (let i = flat.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [flat[i], flat[j]] = [flat[j], flat[i]];
@@ -359,13 +391,14 @@ function checkGameOver() {
                 }
             }
         }
-        // Убираем бонусы
         for (let i = 0; i < SIZE; i++) {
             for (let j = 0; j < SIZE; j++) {
                 if (typeof grid[i][j] !== 'number') grid[i][j] = Math.floor(Math.random() * EMOJIS.length);
             }
         }
         renderGrid();
+        isProcessing = false;
+        selected = null;
     }, 500);
 }
 
@@ -396,7 +429,6 @@ function startGame() {
     document.getElementById('statusMsg').textContent = '🍎 Собирай комбинации!';
 }
 
-// Глобальная функция для тоста
 window.showToast = function(msg, isError = false) {
     const el = document.getElementById('toast');
     el.textContent = msg;
@@ -405,7 +437,6 @@ window.showToast = function(msg, isError = false) {
     setTimeout(() => el.classList.remove('show'), 2000);
 };
 
-// Кнопки
 document.getElementById('newGameBtn').addEventListener('click', startGame);
 document.getElementById('shuffleBtn').addEventListener('click', () => {
     if (isProcessing) return;
