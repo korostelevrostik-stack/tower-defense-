@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🏰 Защита башни</title>
+    <title>🍎 Три в ряд</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
     <!-- ===== АВТОРИЗАЦИЯ ===== -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-box">
-            <h2 id="authTitle">🏰 Вход в игру</h2>
+            <h2>🍎 ТРИ В РЯД</h2>
             <div class="auth-error" id="authError"></div>
             <div class="auth-success" id="authSuccess"></div>
             <div id="authExtraFields"></div>
@@ -23,74 +23,57 @@
     </div>
 
     <!-- ===== ИГРА ===== -->
-    <div class="game" id="gameContainer">
+    <div class="game">
         <button class="back-btn" id="backBtn">🏠 На главную</button>
-        <div class="header">🏰 ЗАЩИТА БАШНИ</div>
+        <div class="header">
+            🍎 ТРИ В РЯД
+            <span class="sub">👤 <span id="userName">Гость</span></span>
+        </div>
         <div class="stats">
-            <div class="stat-item">💰 <span id="money">50</span></div>
-            <div class="stat-item">🌊 <span id="wave">0</span></div>
-            <div class="stat-item">❤️ <span id="lives">5</span></div>
-            <div class="stat-item">⚔️ <span id="kills">0</span></div>
+            <div class="stat-item">🏆 Очки <span id="score">0</span></div>
+            <div class="stat-item">👆 Ходов <span id="moves">0</span></div>
+            <div class="stat-item">🏅 Рекорд <span id="highScore">0</span></div>
         </div>
-        <div class="canvas-wrap">
-            <canvas id="gameCanvas"></canvas>
-            <div class="wave-announce" id="waveAnnounce">🌊 ВОЛНА 1</div>
-            <div class="game-over" id="gameOver">
-                <div class="go-text" id="goText">💀 ПОРАЖЕНИЕ</div>
-                <div class="go-score">💰 Монет: <span id="goMoney">0</span></div>
-                <div class="go-score">🌊 Волн пройдено: <span id="goWaves">0</span></div>
-                <div class="go-score">⚔️ Врагов убито: <span id="goKills">0</span></div>
-                <button class="go-btn" id="restartBtn">🔄 Играть снова</button>
-            </div>
+        <div class="grid-wrap">
+            <div class="grid" id="grid"></div>
         </div>
-        <div class="tower-bar">
-            <button class="tower-btn active" data-tower="0"><span class="temoji">🏹</span><span class="tname">Лучник</span><span class="tprice">20💰</span></button>
-            <button class="tower-btn" data-tower="1"><span class="temoji">🔮</span><span class="tname">Маг</span><span class="tprice">35💰</span></button>
-            <button class="tower-btn" data-tower="2"><span class="temoji">💥</span><span class="tname">Пушка</span><span class="tprice">50💰</span></button>
-            <button class="tower-btn" data-tower="3"><span class="temoji">❄️</span><span class="tname">Ледяная</span><span class="tprice">70💰</span></button>
+        <div class="btn-row">
+            <button class="btn gold" id="newGameBtn">🔄 Новая игра</button>
+            <button class="btn blue" id="shuffleBtn">🔀 Перемешать</button>
+            <button class="btn red" id="resetBtn">🗑️ Сброс</button>
         </div>
-        <div class="actions">
-            <button class="action-btn gold" id="upgradeBtn">⬆️ Улучшить (15💰)</button>
-            <button class="action-btn" id="sellBtn">💰 Продать (10💰)</button>
-            <button class="action-btn red" id="resetBtn">🔄 Сброс</button>
-        </div>
-        <div class="footer" id="statusMsg">🏰 Строй башни и защищай свой сад!</div>
+        <div class="footer" id="statusMsg">🍎 Собирай комбинации из 3+ фруктов!</div>
     </div>
 
     <script src="data.js"></script>
     <script src="auth.js"></script>
-    <script src="draw.js"></script>
     <script src="game.js"></script>
     <script>
         // ================================================================
         //  ЗАПУСК
         // ================================================================
 
-        // Функция для показа тоста
-        window.showToast = function(msg, isError = false) {
-            const el = document.getElementById('toast');
-            el.textContent = msg;
-            el.className = 'toast' + (isError ? ' error' : '');
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 2500);
-        };
-
-        // Переопределяем showToast для глобального доступа
-        const origShowToast = window.showToast;
-        window.showToast = origShowToast;
-
-        // Проверяем, есть ли уже пользователь
         const user = getCurrentUser();
         if (user) {
             document.getElementById('authOverlay').classList.add('hidden');
-            currentUser = user;
-            initCanvas();
             startGame();
         } else {
             showAuthScreen('register');
         }
 
-        console.log('🚀 Tower Defense загружена!');
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (!confirm('Сбросить прогресс?')) return;
+            const user = getCurrentUser();
+            if (user) {
+                const gs = getGameState(user);
+                gs.highScore = 0;
+                saveGameState(user, gs);
+            }
+            startGame();
+            showToast('🔄 Прогресс сброшен!', true);
+        });
+
+        console.log('🍎 Три в ряд загружена!');
     </script>
 </body>
 </html>
