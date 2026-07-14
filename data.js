@@ -1,24 +1,22 @@
 // ================================================================
-//  data.js — БАЗА ДАННЫХ (локальное хранилище)
+//  data.js — БАЗА ДАННЫХ
 // ================================================================
 
-// ---- ПОЛЬЗОВАТЕЛИ ----
 function getUsers() {
-    try { return JSON.parse(localStorage.getItem('towerUsers')) || {}; } catch (e) { return {}; }
+    try { return JSON.parse(localStorage.getItem('match3Users')) || {}; } catch (e) { return {}; }
 }
 
-function saveUsers(u) { localStorage.setItem('towerUsers', JSON.stringify(u)); }
+function saveUsers(u) { localStorage.setItem('match3Users', JSON.stringify(u)); }
 
 function getCurrentUser() {
-    try { return JSON.parse(localStorage.getItem('towerCurrentUser')); } catch (e) { return null; }
+    try { return JSON.parse(localStorage.getItem('match3CurrentUser')); } catch (e) { return null; }
 }
 
 function setCurrentUser(u) {
-    if (u) localStorage.setItem('towerCurrentUser', JSON.stringify(u));
-    else localStorage.removeItem('towerCurrentUser');
+    if (u) localStorage.setItem('match3CurrentUser', JSON.stringify(u));
+    else localStorage.removeItem('match3CurrentUser');
 }
 
-// ---- ПОЛЬЗОВАТЕЛЬ ----
 function getUserData(username) {
     const users = getUsers();
     return users[username] || null;
@@ -34,14 +32,12 @@ function createUser(username, gender, password = '') {
     const users = getUsers();
     if (users[username]) return { success: false, error: 'Это имя уже занято!' };
     if (username.length < 5) return { success: false, error: 'Имя должно быть от 5 символов!' };
-
     users[username] = {
         gender: gender,
         password: password,
         state: {
-            money: 50,
-            maxWaves: 0,
-            totalKills: 0,
+            score: 0,
+            highScore: 0,
             gamesPlayed: 0,
         },
         created: Date.now()
@@ -57,15 +53,12 @@ function loginUser(username) {
     return { success: true };
 }
 
-function logoutUser() {
-    setCurrentUser(null);
-}
+function logoutUser() { setCurrentUser(null); }
 
-// ---- СОСТОЯНИЕ ИГРЫ ----
 function getGameState(username) {
     const user = getUserData(username);
     if (!user) return null;
-    return user.state || { money: 50, maxWaves: 0, totalKills: 0, gamesPlayed: 0 };
+    return user.state || { score: 0, highScore: 0, gamesPlayed: 0 };
 }
 
 function saveGameState(username, state) {
