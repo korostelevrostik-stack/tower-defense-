@@ -1,5 +1,5 @@
 // ================================================================
-//  game.js — ЛОГИКА ТРИ В РЯД С АНИМАЦИЯМИ
+//  game.js — ТРИ В РЯД (С АНИМАЦИЯМИ)
 // ================================================================
 
 let grid = [];
@@ -100,19 +100,16 @@ function onCellClick(row, col) {
 
 function swapAndCheck(r1, c1, r2, c2) {
     isProcessing = true;
-    // Меняем в данных
     const temp = grid[r1][c1];
     grid[r1][c1] = grid[r2][c2];
     grid[r2][c2] = temp;
 
-    // Плавная анимация обмена
     Animations.swap(r1, c1, r2, c2, () => {
         if (hasMatches()) {
             moves++;
             document.getElementById('moves').textContent = moves;
             processMatches();
         } else {
-            // Отмена обмена
             const tempBack = grid[r1][c1];
             grid[r1][c1] = grid[r2][c2];
             grid[r2][c2] = tempBack;
@@ -197,7 +194,7 @@ function processMatches() {
                 if (!bonusMap.has(`${r},${c}`)) cellsToRemove.add(`${r},${c}`);
             });
         } else {
-            group.forEach(([r, c]) => cellsToRemove.add(`${r},${c}`);
+            group.forEach(([r, c]) => cellsToRemove.add(`${r},${c}`));
         }
         points += size;
     });
@@ -209,37 +206,30 @@ function processMatches() {
         highScore = score;
         document.getElementById('highScore').textContent = highScore;
         if (currentUser) {
-            const gs = getGameState(currentUser);
-            gs.highScore = highScore;
-            saveGameState(currentUser, gs);
+            saveHighScore(currentUser, highScore);
         }
     }
 
-    // Анимация удаления
     const cellsToRemoveArray = Array.from(cellsToRemove).map(key => {
         const [r, c] = key.split(',').map(Number);
         return [r, c];
     });
 
     Animations.remove(cellsToRemoveArray, () => {
-        // Удаляем из данных
         cellsToRemove.forEach(key => {
             const [r, c] = key.split(',').map(Number);
             grid[r][c] = -1;
         });
 
-        // Ставим бонусы
         bonusMap.forEach((type, key) => {
             const [r, c] = key.split(',').map(Number);
             grid[r][c] = type;
             Animations.bonus(r, c, type);
         });
 
-        // Падение
         setTimeout(() => {
-            const changed = dropDown();
+            dropDown();
             renderGrid();
-            // Анимация падения
             const rows = [];
             const cols = [];
             for (let r = 0; r < SIZE; r++) {
@@ -266,25 +256,19 @@ function processMatches() {
 }
 
 function dropDown() {
-    let changed = false;
     for (let c = 0; c < SIZE; c++) {
         let writeRow = SIZE - 1;
         for (let r = SIZE - 1; r >= 0; r--) {
             if (grid[r][c] !== -1) {
                 grid[writeRow][c] = grid[r][c];
-                if (writeRow !== r) {
-                    grid[r][c] = -1;
-                    changed = true;
-                }
+                if (writeRow !== r) grid[r][c] = -1;
                 writeRow--;
             }
         }
         for (let r = writeRow; r >= 0; r--) {
             grid[r][c] = Math.floor(Math.random() * EMOJIS.length);
-            changed = true;
         }
     }
-    return changed;
 }
 
 function activateBonus(row, col) {
@@ -324,7 +308,7 @@ function activateBonus(row, col) {
 }
 
 function afterBonus() {
-    const changed = dropDown();
+    dropDown();
     renderGrid();
     const rows = [], cols = [];
     for (let r = 0; r < SIZE; r++) {
@@ -412,10 +396,14 @@ function updateUI() {
 
 function startGame() {
     const user = getCurrentUser();
-    if (!user) { showAuthScreen('login'); return; }
+    if (!user) {
+        document.getElementById('userName').textContent = 'Гость';
+        showAuthScreen('login');
+        return;
+    }
     currentUser = user;
-    const gs = getGameState(user);
-    highScore = gs?.highScore || 0;
+    document.getElementById('userName').textContent = user;
+    highScore = getHighScore(user);
     score = 0;
     moves = 0;
     selected = null;
@@ -423,7 +411,6 @@ function startGame() {
     document.getElementById('score').textContent = '0';
     document.getElementById('moves').textContent = '0';
     document.getElementById('highScore').textContent = highScore;
-    document.getElementById('userName').textContent = user;
     initGrid();
     renderGrid();
     document.getElementById('statusMsg').textContent = '🍎 Собирай комбинации!';
@@ -444,5 +431,12 @@ document.getElementById('shuffleBtn').addEventListener('click', () => {
     renderGrid();
     showToast('🔄 Перемешано!', false);
 });
+
+// Запуск при загрузке
+const user = getCurrentUser();
+if (user) {
+    document.getElementById('userName').textContent = user;
+    startGame();
+}
 
 console.log('🎮 game.js загружен!');
