@@ -13,9 +13,11 @@
     <!-- ===== АВТОРИЗАЦИЯ ===== -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-box">
-            <h2 id="authTitle">🍎 Три в ряд</h2>
+            <h2 id="authTitle">🍎 Вход в игру</h2>
             <div class="auth-error" id="authError"></div>
             <div class="auth-success" id="authSuccess"></div>
+            <input type="text" id="authLogin" placeholder="👤 Имя">
+            <input type="password" id="authPassword" placeholder="🔒 Пароль">
             <div id="authExtraFields"></div>
             <button class="auth-btn-login" id="authSubmitBtn">Войти</button>
             <div class="auth-toggle" id="authToggle">Нет аккаунта? Регистрация</div>
@@ -86,15 +88,10 @@
     <script src="game.js"></script>
     <script src="menu.js"></script>
     <script>
-        // ================================================================
-        //  ЗАПУСК
-        // ================================================================
-
         function initApp() {
             const savedUser = checkAuth();
             
             if (savedUser) {
-                console.log('👤 Авто-вход для:', savedUser);
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('userNameDisplay').textContent = savedUser;
                 document.getElementById('userName').textContent = savedUser;
@@ -103,16 +100,13 @@
                 updateLevelDisplay();
                 showToast(`👋 С возвращением, ${savedUser}!`, false);
             } else {
-                console.log('❌ Требуется авторизация');
                 document.getElementById('menuContainer').style.display = 'none';
-                showAuthScreen('register');
+                showAuthScreen('login');
             }
         }
 
-        // ---- ЗАПУСК ----
         initApp();
 
-        // ---- КНОПКИ ----
         document.getElementById('gameBackBtn').addEventListener('click', () => {
             if (isProcessing) return;
             document.getElementById('gameContainer').style.display = 'none';
@@ -127,7 +121,6 @@
         });
 
         console.log('🍎 Три в ряд загружена!');
-        console.log('🔐 Статус авторизации:', getCurrentUser() ? '✅ Вошёл' : '❌ Гость');
     </script>
 </body>
 </html>
