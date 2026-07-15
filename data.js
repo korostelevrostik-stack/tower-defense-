@@ -1,8 +1,7 @@
 // ================================================================
-//  data.js — БАЗА ДАННЫХ ДЛЯ ТРИ В РЯД
+//  data.js — БАЗА ДАННЫХ (С АВТО-ВХОДОМ)
 // ================================================================
 
-// ---- ПРОСТЫЕ КЛЮЧИ ----
 const STORAGE_KEY = 'match3Users';
 const CURRENT_USER_KEY = 'match3CurrentUser';
 
@@ -13,15 +12,48 @@ function getUsers() {
 
 function saveUsers(u) { localStorage.setItem(STORAGE_KEY, JSON.stringify(u)); }
 
+// ---- ТЕКУЩИЙ ПОЛЬЗОВАТЕЛЬ (СОХРАНЯЕТСЯ В localStorage) ----
 function getCurrentUser() {
-    try { return JSON.parse(localStorage.getItem(CURRENT_USER_KEY)); } catch (e) { return null; }
+    try {
+        const user = localStorage.getItem(CURRENT_USER_KEY);
+        if (!user) return null;
+        const parsed = JSON.parse(user);
+        // Проверяем, существует ли пользователь в базе
+        const users = getUsers();
+        if (users[parsed]) {
+            return parsed;
+        }
+        // Если пользователь удалён из базы — очищаем
+        localStorage.removeItem(CURRENT_USER_KEY);
+        return null;
+    } catch (e) { return null; }
 }
 
 function setCurrentUser(u) {
-    if (u) localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
-    else localStorage.removeItem(CURRENT_USER_KEY);
+    if (u) {
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
+        console.log('👤 Сохранён пользователь:', u);
+    } else {
+        localStorage.removeItem(CURRENT_USER_KEY);
+        console.log('👤 Пользователь удалён');
+    }
 }
 
+// ---- ПРОВЕРКА АВТОРИЗАЦИИ (ВЫЗЫВАЕТСЯ ПРИ ЗАГРУЗКЕ) ----
+function checkAuth() {
+    const user = getCurrentUser();
+    if (user) {
+        const users = getUsers();
+        if (users[user]) {
+            console.log('✅ Авто-вход выполнен для:', user);
+            return user;
+        }
+    }
+    console.log('❌ Авто-вход не выполнен');
+    return null;
+}
+
+// ---- ОСТАЛЬНЫЕ ФУНКЦИИ ----
 function getUserData(username) {
     const users = getUsers();
     return users[username] || null;
@@ -33,7 +65,6 @@ function saveUserData(username, data) {
     saveUsers(users);
 }
 
-// ---- СОЗДАНИЕ АККАУНТА ----
 function createUser(username, gender) {
     const users = getUsers();
     if (users[username]) return { success: false, error: 'Это имя уже занято!' };
@@ -42,9 +73,21 @@ function createUser(username, gender) {
         gender: gender,
         highScore: 0,
         gamesPlayed: 0,
+        menuState: {
+            currentLevel: 1,
+            maxLevel: 5,
+            stars: 0,
+            energy: 5,
+            maxEnergy: 5,
+            hintCount: 3,
+            lastEnergyTime: Date.now(),
+            lastDailyReward: Date.now() - 86400000,
+        },
         created: Date.now()
     };
     saveUsers(users);
+    // Автоматически входим
+    setCurrentUser(username);
     return { success: true };
 }
 
@@ -55,7 +98,9 @@ function loginUser(username) {
     return { success: true };
 }
 
-function logoutUser() { setCurrentUser(null); }
+function logoutUser() {
+    setCurrentUser(null);
+}
 
 function getHighScore(username) {
     const user = getUserData(username);
@@ -71,4 +116,4 @@ function saveHighScore(username, score) {
 }
 
 console.log('📦 data.js загружен!');
-console.log('🔑 Ключ пользователей:', STORAGE_KEY);
+console.log('🔑 Текущий пользователь:', getCurrentUser());
