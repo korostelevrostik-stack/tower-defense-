@@ -1,5 +1,5 @@
 // ================================================================
-//  auth.js — РЕГИСТРАЦИЯ И ВХОД (С ПЕРЕХОДОМ В ИГРУ)
+//  auth.js — РЕГИСТРАЦИЯ И ВХОД (КАК В КЛИКЕРЕ)
 // ================================================================
 
 function showAuthScreen(mode) {
@@ -7,16 +7,17 @@ function showAuthScreen(mode) {
     overlay.classList.remove('hidden');
     document.getElementById('authError').textContent = '';
     document.getElementById('authSuccess').textContent = '';
+    document.getElementById('authLogin').value = '';
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authExtraFields').innerHTML = '';
 
     if (mode === 'login') {
-        document.getElementById('authTitle').textContent = '🍎 Вход';
+        document.getElementById('authTitle').textContent = '🍎 Вход в игру';
         document.getElementById('authSubmitBtn').textContent = 'Войти';
         document.getElementById('authSubmitBtn').className = 'auth-btn-login';
         document.getElementById('authToggle').textContent = 'Нет аккаунта? Регистрация';
         document.getElementById('authToggle').dataset.mode = 'register';
-        document.getElementById('authExtraFields').innerHTML = `
-            <input type="text" id="authLogin" placeholder="👤 Твоё имя">
-        `;
+        document.getElementById('authExtraFields').innerHTML = '';
     } else {
         document.getElementById('authTitle').textContent = '🍎 Регистрация';
         document.getElementById('authSubmitBtn').textContent = 'Создать аккаунт';
@@ -24,73 +25,68 @@ function showAuthScreen(mode) {
         document.getElementById('authToggle').textContent = 'Уже есть аккаунт? Войти';
         document.getElementById('authToggle').dataset.mode = 'login';
         document.getElementById('authExtraFields').innerHTML = `
-            <div class="auth-label">👤 Ты кто?</div>
-            <div class="gender-row">
-                <button class="gender-btn" data-gender="male">👦 Мальчик</button>
-                <button class="gender-btn" data-gender="female">👧 Девочка</button>
-            </div>
-            <div class="auth-label">👤 Придумай имя (от 5 символов)</div>
-            <input type="text" id="authName" placeholder="Например: ВоинСвета" maxlength="20">
+            <input type="password" id="authPassword2" placeholder="🔒 Повторите пароль">
         `;
-        setTimeout(() => {
-            document.querySelectorAll('.gender-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                });
-            });
-        }, 100);
     }
 }
 
 function handleAuth() {
-    const isRegister = document.getElementById('authSubmitBtn').textContent === 'Создать аккаунт';
+    const login = document.getElementById('authLogin').value.trim();
+    const pass = document.getElementById('authPassword').value.trim();
     const err = document.getElementById('authError');
     const suc = document.getElementById('authSuccess');
     err.textContent = '';
     suc.textContent = '';
 
+    if (!login || !pass) {
+        err.textContent = 'Заполните все поля!';
+        return;
+    }
+
+    const isRegister = document.getElementById('authSubmitBtn').textContent === 'Создать аккаунт';
+    const users = getUsers();
+
     if (isRegister) {
-        const name = document.getElementById('authName').value.trim();
-        const genderBtn = document.querySelector('.gender-btn.active');
-        if (!genderBtn) { err.textContent = 'Выбери свой пол!'; return; }
-        const gender = genderBtn.dataset.gender;
-        if (name.length < 5) { err.textContent = '⚠️ Имя должно быть от 5 символов!'; return; }
-        const users = getUsers();
-        if (users[name]) { err.textContent = '❌ Это имя уже занято!'; return; }
-        const result = createUser(name, gender);
+        const pass2 = document.getElementById('authPassword2').value.trim();
+        if (pass !== pass2) {
+            err.textContent = 'Пароли не совпадают!';
+            return;
+        }
+        if (users[login]) {
+            err.textContent = '❌ Это имя уже занято!';
+            return;
+        }
+        const result = createAccount(login, pass);
         if (result.success) {
             suc.textContent = '✅ Аккаунт создан!';
-            // Входим и переходим в игру
             setTimeout(() => {
                 document.getElementById('authOverlay').classList.add('hidden');
-                document.getElementById('userNameDisplay').textContent = name;
-                document.getElementById('userName').textContent = name;
-                // Показываем меню и обновляем
+                document.getElementById('userNameDisplay').textContent = login;
+                document.getElementById('userName').textContent = login;
                 document.getElementById('menuContainer').style.display = 'block';
                 loadMenu();
                 updateLevelDisplay();
-                showToast(`👋 Добро пожаловать, ${name}!`, false);
-            }, 600);
+                showToast(`👋 Добро пожаловать, ${login}!`, false);
+            }, 500);
         } else {
             err.textContent = result.error;
         }
     } else {
-        const name = document.getElementById('authLogin').value.trim();
-        if (!name) { err.textContent = 'Введи своё имя!'; return; }
-        const users = getUsers();
-        if (!users[name]) { err.textContent = '❌ Пользователь не найден!'; return; }
-        suc.textContent = '✅ Добро пожаловать!';
-        setTimeout(() => {
-            loginUser(name);
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('userNameDisplay').textContent = name;
-            document.getElementById('userName').textContent = name;
-            document.getElementById('menuContainer').style.display = 'block';
-            loadMenu();
-            updateLevelDisplay();
-            showToast(`👋 С возвращением, ${name}!`, false);
-        }, 500);
+        const result = loginUser(login, pass);
+        if (result.success) {
+            suc.textContent = '✅ Добро пожаловать!';
+            setTimeout(() => {
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('userNameDisplay').textContent = login;
+                document.getElementById('userName').textContent = login;
+                document.getElementById('menuContainer').style.display = 'block';
+                loadMenu();
+                updateLevelDisplay();
+                showToast(`👋 С возвращением, ${login}!`, false);
+            }, 500);
+        } else {
+            err.textContent = result.error;
+        }
     }
 }
 
