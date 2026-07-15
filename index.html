@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <!-- ===== МЕНЮ (Gardenscapes стиль) ===== -->
+    <!-- ===== МЕНЮ ===== -->
     <div class="game" id="menuContainer" style="display:none;">
         <button class="back-btn" id="backBtn">🏠 На главную</button>
         
@@ -31,39 +31,20 @@
             <span class="sub">👤 <span id="userNameDisplay">Гость</span></span>
         </div>
 
-        <!-- Верхняя панель -->
         <div class="menu-top">
             <div class="menu-stats">
-                <div class="menu-stat">
-                    <span class="icon">⭐</span>
-                    <span id="starsCount">0</span>
-                </div>
-                <div class="menu-stat">
-                    <span class="icon">⚡</span>
-                    <span id="energyCount">5</span>
-                    <span class="sub-text">/5</span>
-                </div>
-                <div class="menu-stat">
-                    <span class="icon">💡</span>
-                    <span id="hintCount">3</span>
-                </div>
+                <div class="menu-stat"><span class="icon">⭐</span><span id="starsCount">0</span></div>
+                <div class="menu-stat"><span class="icon">⚡</span><span id="energyCount">5</span><span class="sub-text">/5</span></div>
+                <div class="menu-stat"><span class="icon">💡</span><span id="hintCount">3</span></div>
             </div>
-            
             <div class="level-progress">
-                <div class="level-info">
-                    <span id="levelDisplay">Уровень 1</span>
-                    <span id="levelProgressText">0%</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="levelProgress" style="width:0%"></div>
-                </div>
+                <div class="level-info"><span id="levelDisplay">Уровень 1</span><span id="levelProgressText">0%</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="levelProgress" style="width:0%"></div></div>
             </div>
         </div>
 
-        <!-- Уровни -->
         <div class="levels-grid" id="levelsContainer"></div>
 
-        <!-- Кнопки действий -->
         <div class="menu-actions">
             <button class="menu-btn primary" id="playBtn">🎮 Играть</button>
             <button class="menu-btn hint" id="hintBtn">💡 Подсказка</button>
@@ -77,10 +58,7 @@
     <!-- ===== ИГРА ===== -->
     <div class="game" id="gameContainer" style="display:none;">
         <button class="back-btn" id="gameBackBtn">🏠 Меню</button>
-        <div class="header">
-            <span id="gameTitle">🎮 Уровень 1</span>
-            <span class="sub">🎯 <span id="targetScore">Цель: 30</span></span>
-        </div>
+        <div class="header"><span id="gameTitle">🎮 Уровень 1</span><span class="sub">🎯 <span id="targetScore">Цель: 30</span></span></div>
         <div class="stats">
             <div class="stat-item">🏆 Очки <span id="score">0</span></div>
             <div class="stat-item">👆 Ходов <span id="moves">0/20</span></div>
@@ -109,20 +87,33 @@
     <script src="menu.js"></script>
     <script>
         // ================================================================
-        //  ЗАПУСК
+        //  ЗАПУСК С ПРОВЕРКОЙ АККАУНТА
         // ================================================================
 
-        const user = getCurrentUser();
-        if (user) {
-            document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('userNameDisplay').textContent = user;
-            loadMenu();
-        } else {
-            document.getElementById('menuContainer').style.display = 'none';
-            showAuthScreen('register');
+        function initApp() {
+            // Проверяем, есть ли сохранённый пользователь
+            const savedUser = checkAuth();
+            
+            if (savedUser) {
+                // Пользователь уже авторизован
+                console.log('👤 Авто-вход для:', savedUser);
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('userNameDisplay').textContent = savedUser;
+                document.getElementById('userName').textContent = savedUser;
+                document.getElementById('menuContainer').style.display = 'block';
+                loadMenu();
+            } else {
+                // Пользователь не авторизован — показываем экран входа
+                console.log('❌ Требуется авторизация');
+                document.getElementById('menuContainer').style.display = 'none';
+                showAuthScreen('register');
+            }
         }
 
-        // Кнопка назад в игре
+        // ---- ЗАПУСК ----
+        initApp();
+
+        // ---- КНОПКИ ----
         document.getElementById('gameBackBtn').addEventListener('click', () => {
             if (isProcessing) return;
             document.getElementById('gameContainer').style.display = 'none';
@@ -136,7 +127,8 @@
             startGame();
         });
 
-        console.log('🍎 Три в ряд с меню загружена!');
+        console.log('🍎 Три в ряд загружена!');
+        console.log('🔐 Статус авторизации:', getCurrentUser() ? '✅ Вошёл' : '❌ Гость');
     </script>
 </body>
 </html>
