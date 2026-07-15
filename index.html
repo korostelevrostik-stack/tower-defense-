@@ -22,20 +22,77 @@
         </div>
     </div>
 
-    <!-- ===== ИГРА ===== -->
-    <div class="game">
+    <!-- ===== МЕНЮ (Gardenscapes стиль) ===== -->
+    <div class="game" id="menuContainer" style="display:none;">
         <button class="back-btn" id="backBtn">🏠 На главную</button>
+        
         <div class="header">
             🍎 ТРИ В РЯД
-            <span class="sub">👤 <span id="userName">Гость</span></span>
+            <span class="sub">👤 <span id="userNameDisplay">Гость</span></span>
+        </div>
+
+        <!-- Верхняя панель -->
+        <div class="menu-top">
+            <div class="menu-stats">
+                <div class="menu-stat">
+                    <span class="icon">⭐</span>
+                    <span id="starsCount">0</span>
+                </div>
+                <div class="menu-stat">
+                    <span class="icon">⚡</span>
+                    <span id="energyCount">5</span>
+                    <span class="sub-text">/5</span>
+                </div>
+                <div class="menu-stat">
+                    <span class="icon">💡</span>
+                    <span id="hintCount">3</span>
+                </div>
+            </div>
+            
+            <div class="level-progress">
+                <div class="level-info">
+                    <span id="levelDisplay">Уровень 1</span>
+                    <span id="levelProgressText">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="levelProgress" style="width:0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Уровни -->
+        <div class="levels-grid" id="levelsContainer"></div>
+
+        <!-- Кнопки действий -->
+        <div class="menu-actions">
+            <button class="menu-btn primary" id="playBtn">🎮 Играть</button>
+            <button class="menu-btn hint" id="hintBtn">💡 Подсказка</button>
+            <button class="menu-btn daily" id="dailyBtn">🎁 Ежедневная награда</button>
+            <button class="menu-btn reset" id="resetMenuBtn">🔄 Сброс</button>
+        </div>
+
+        <div class="footer" id="menuStatus">🏡 Добро пожаловать в игру!</div>
+    </div>
+
+    <!-- ===== ИГРА ===== -->
+    <div class="game" id="gameContainer" style="display:none;">
+        <button class="back-btn" id="gameBackBtn">🏠 Меню</button>
+        <div class="header">
+            <span id="gameTitle">🎮 Уровень 1</span>
+            <span class="sub">🎯 <span id="targetScore">Цель: 30</span></span>
         </div>
         <div class="stats">
             <div class="stat-item">🏆 Очки <span id="score">0</span></div>
-            <div class="stat-item">👆 Ходов <span id="moves">0</span></div>
+            <div class="stat-item">👆 Ходов <span id="moves">0/20</span></div>
             <div class="stat-item">🏅 Рекорд <span id="highScore">0</span></div>
         </div>
         <div class="grid-wrap">
             <div class="grid" id="grid"></div>
+            <div class="game-over" id="gameOver">
+                <div class="go-text" id="goText">💀 ПОРАЖЕНИЕ</div>
+                <div class="go-score" id="goScore">Очки: 0</div>
+                <button class="go-btn" id="restartBtn">🔄 Ещё раз</button>
+            </div>
         </div>
         <div class="btn-row">
             <button class="btn gold" id="newGameBtn">🔄 Новая игра</button>
@@ -49,6 +106,7 @@
     <script src="auth.js"></script>
     <script src="animations.js"></script>
     <script src="game.js"></script>
+    <script src="menu.js"></script>
     <script>
         // ================================================================
         //  ЗАПУСК
@@ -57,25 +115,28 @@
         const user = getCurrentUser();
         if (user) {
             document.getElementById('authOverlay').classList.add('hidden');
-            document.getElementById('userName').textContent = user;
-            startGame();
+            document.getElementById('userNameDisplay').textContent = user;
+            loadMenu();
         } else {
-            document.getElementById('userName').textContent = 'Гость';
+            document.getElementById('menuContainer').style.display = 'none';
             showAuthScreen('register');
         }
 
-        document.getElementById('resetBtn').addEventListener('click', () => {
-            if (!confirm('Сбросить рекорд?')) return;
-            const user = getCurrentUser();
-            if (user) {
-                saveHighScore(user, 0);
-                highScore = 0;
-                document.getElementById('highScore').textContent = '0';
-                showToast('🔄 Рекорд сброшен!', true);
-            }
+        // Кнопка назад в игре
+        document.getElementById('gameBackBtn').addEventListener('click', () => {
+            if (isProcessing) return;
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('menuContainer').style.display = 'block';
+            updateMenuUI();
+            updateLevelDisplay();
         });
 
-        console.log('🍎 Три в ряд загружена!');
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            document.getElementById('gameOver').classList.remove('active');
+            startGame();
+        });
+
+        console.log('🍎 Три в ряд с меню загружена!');
     </script>
 </body>
 </html>
