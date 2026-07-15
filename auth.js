@@ -1,5 +1,5 @@
 // ================================================================
-//  auth.js — РЕГИСТРАЦИЯ И ВХОД (С АВТО-ВХОДОМ)
+//  auth.js — РЕГИСТРАЦИЯ И ВХОД (С ПЕРЕХОДОМ В ИГРУ)
 // ================================================================
 
 function showAuthScreen(mode) {
@@ -61,13 +61,17 @@ function handleAuth() {
         const result = createUser(name, gender);
         if (result.success) {
             suc.textContent = '✅ Аккаунт создан!';
+            // Входим и переходим в игру
             setTimeout(() => {
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('userNameDisplay').textContent = name;
                 document.getElementById('userName').textContent = name;
+                // Показываем меню и обновляем
+                document.getElementById('menuContainer').style.display = 'block';
                 loadMenu();
-                startGame();
-            }, 500);
+                updateLevelDisplay();
+                showToast(`👋 Добро пожаловать, ${name}!`, false);
+            }, 600);
         } else {
             err.textContent = result.error;
         }
@@ -82,8 +86,10 @@ function handleAuth() {
             document.getElementById('authOverlay').classList.add('hidden');
             document.getElementById('userNameDisplay').textContent = name;
             document.getElementById('userName').textContent = name;
+            document.getElementById('menuContainer').style.display = 'block';
             loadMenu();
-            startGame();
+            updateLevelDisplay();
+            showToast(`👋 С возвращением, ${name}!`, false);
         }, 500);
     }
 }
