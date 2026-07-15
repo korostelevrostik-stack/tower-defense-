@@ -1,5 +1,5 @@
 // ================================================================
-//  auth.js — РЕГИСТРАЦИЯ И ВХОД
+//  auth.js — РЕГИСТРАЦИЯ И ВХОД (С АВТО-ВХОДОМ)
 // ================================================================
 
 function showAuthScreen(mode) {
@@ -62,9 +62,10 @@ function handleAuth() {
         if (result.success) {
             suc.textContent = '✅ Аккаунт создан!';
             setTimeout(() => {
-                loginUser(name);
                 document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('userNameDisplay').textContent = name;
                 document.getElementById('userName').textContent = name;
+                loadMenu();
                 startGame();
             }, 500);
         } else {
@@ -79,7 +80,9 @@ function handleAuth() {
         setTimeout(() => {
             loginUser(name);
             document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('userNameDisplay').textContent = name;
             document.getElementById('userName').textContent = name;
+            loadMenu();
             startGame();
         }, 500);
     }
@@ -95,7 +98,9 @@ document.getElementById('backBtn').addEventListener('click', () => {
     if (confirm('Выйти из аккаунта?')) {
         logoutUser();
         document.getElementById('authOverlay').classList.remove('hidden');
+        document.getElementById('userNameDisplay').textContent = 'Гость';
         document.getElementById('userName').textContent = 'Гость';
+        document.getElementById('menuContainer').style.display = 'none';
         showAuthScreen('login');
     }
 });
