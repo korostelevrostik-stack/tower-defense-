@@ -87,23 +87,22 @@
     <script src="menu.js"></script>
     <script>
         // ================================================================
-        //  ЗАПУСК С ПРОВЕРКОЙ АККАУНТА
+        //  ЗАПУСК
         // ================================================================
 
         function initApp() {
-            // Проверяем, есть ли сохранённый пользователь
             const savedUser = checkAuth();
             
             if (savedUser) {
-                // Пользователь уже авторизован
                 console.log('👤 Авто-вход для:', savedUser);
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('userNameDisplay').textContent = savedUser;
                 document.getElementById('userName').textContent = savedUser;
                 document.getElementById('menuContainer').style.display = 'block';
                 loadMenu();
+                updateLevelDisplay();
+                showToast(`👋 С возвращением, ${savedUser}!`, false);
             } else {
-                // Пользователь не авторизован — показываем экран входа
                 console.log('❌ Требуется авторизация');
                 document.getElementById('menuContainer').style.display = 'none';
                 showAuthScreen('register');
