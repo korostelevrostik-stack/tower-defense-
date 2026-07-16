@@ -9,58 +9,49 @@
 <script src="game.js"></script>
 <script src="menu.js"></script>
 <script>
-    // ================================================================
-    //  ЗАПУСК (АВТО-ГЕНЕРАЦИЯ ИМЕНИ)
-    // ================================================================
-
+    // ЗАПУСК
     function initApp() {
-        // Сначала проверяем, есть ли сохранённый пользователь
         const savedUser = getCurrentUser();
         if (savedUser) {
             const users = getUsers();
             if (users[savedUser]) {
-                // Вход существующего пользователя
                 document.getElementById('authOverlay').classList.add('hidden');
                 document.getElementById('userNameDisplay').textContent = savedUser;
                 document.getElementById('userName').textContent = savedUser;
                 document.getElementById('menuContainer').style.display = 'flex';
-                loadMenu();
-                updateLevelDisplay();
-                showToast(`👋 С возвращением, ${savedUser}!`, false);
-                console.log('✅ Загружен пользователь:', savedUser);
+                if (typeof loadMenu === 'function') loadMenu();
+                if (typeof updateLevelDisplay === 'function') updateLevelDisplay();
+                if (typeof showToast === 'function') showToast(`👋 С возвращением, ${savedUser}!`, false);
                 return;
             }
         }
-        
-        // Если пользователя нет — показываем экран входа
         document.getElementById('authOverlay').classList.remove('hidden');
         document.getElementById('authTitle').textContent = '🍎 Три в ряд';
         document.getElementById('authSubmitBtn').textContent = '🎮 Войти в игру';
         document.getElementById('authExtraFields').innerHTML = '';
         document.getElementById('authToggle').textContent = '';
-        document.getElementById('authError').textContent = '';
-        document.getElementById('authSuccess').textContent = '';
-        console.log('❌ Пользователь не найден, показываем вход');
     }
 
-    // ---- ЗАПУСК ----
-    initApp();
+    // ЗАПУСК ПРИ ЗАГРУЗКЕ
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+        initApp();
+    }
 
-    // ---- КНОПКИ ----
-    document.getElementById('gameBackBtn').addEventListener('click', () => {
-        if (isProcessing) return;
+    document.getElementById('gameBackBtn').addEventListener('click', function() {
         document.getElementById('gameContainer').style.display = 'none';
         document.getElementById('menuContainer').style.display = 'flex';
-        updateMenuUI();
-        updateLevelDisplay();
+        if (typeof updateMenuUI === 'function') updateMenuUI();
+        if (typeof updateLevelDisplay === 'function') updateLevelDisplay();
     });
 
-    document.getElementById('restartBtn').addEventListener('click', () => {
+    document.getElementById('restartBtn').addEventListener('click', function() {
         document.getElementById('gameOver').classList.remove('active');
-        startGame();
+        if (typeof startGame === 'function') startGame();
     });
 
-    document.getElementById('logoutMenuBtn').addEventListener('click', () => {
+    document.getElementById('logoutMenuBtn').addEventListener('click', function() {
         if (confirm('Выйти из аккаунта?')) {
             logoutUser();
             document.getElementById('authOverlay').classList.remove('hidden');
@@ -75,5 +66,4 @@
     });
 
     console.log('🍎 Три в ряд загружена!');
-    console.log('👤 Текущий пользователь:', getCurrentUser() || 'Гость');
 </script>
